@@ -1,0 +1,8 @@
+# Python files
+.ipynb_checkpoints
+
+# Pycharm files
+.idea
+
+# Data
+data
