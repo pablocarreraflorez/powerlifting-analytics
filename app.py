@@ -5,7 +5,6 @@ import dash_html_components as html
 import dash_table as dt
 from dash.dependencies import Input, Output
 from app_utils import *
-import pandas as pd
 
 
 # Load data
@@ -23,9 +22,6 @@ app.layout = html.Div(children=[
         # * Plot with best men squat per weight class
         # * Plot with best men bench per weight class
         # * Plot with best men deadlift per weight class
-        # * Plot with best women squat per weight class
-        # * Plot with best women bench per weight class
-        # * Plot with best women deadlift per weight class
         dcc.Tab(
             id='tab-global',
             label='Global stats',
@@ -43,8 +39,9 @@ app.layout = html.Div(children=[
                     html.Div(children=[
                         html.H3(children="Equipment:"),
                         dcc.Dropdown(id='globalstats-dropdown-equipment',
-                                     options=[{'label': i, 'value': i} for i in ['Raw', 'Raw+Wraps']],
-                                     value='Raw'
+                                     options=[{'label': i, 'value': i} for i in ['Raw', 'Wraps', 'Single-ply', 'Multi-ply']],
+                                     value=['Raw'],
+                                     multi=True
                                      )
                     ], className='four columns'),
 
@@ -60,19 +57,7 @@ app.layout = html.Div(children=[
                 ], className='row'),
 
                 # Plots with best squat, bench and deadlift per weight class
-                html.Div(children=[
-                    html.Div(children=dcc.Graph(id='globalstats-graph-men-squat'), className='three columns'),
-                    html.Div(children=dcc.Graph(id='globalstats-graph-men-bench'), className='three columns'),
-                    html.Div(children=dcc.Graph(id='globalstats-graph-men-deadlift'), className='three columns'),
-                    html.Div(children=dcc.Graph(id='globalstats-graph-men-total'), className='three columns')
-                ], className='row'),
-
-                html.Div(children=[
-                    html.Div(children=dcc.Graph(id='globalstats-graph-women-squat'), className='three columns'),
-                    html.Div(children=dcc.Graph(id='globalstats-graph-women-bench'), className='three columns'),
-                    html.Div(children=dcc.Graph(id='globalstats-graph-women-deadlift'), className='three columns'),
-                    html.Div(children=dcc.Graph(id='globalstats-graph-women-total'), className='three columns')
-                ], className='row')
+                html.Div(children=dcc.Graph(id='globalstats-graph-men')),
 
             ]
         ),
@@ -126,11 +111,11 @@ app.layout = html.Div(children=[
 
 # Define the callbacks
 @app.callback(
-    Output('globalstats-graph-men-squat', 'figure'),
+    Output('globalstats-graph-men', 'figure'),
     [Input('globalstats-dropdown-weight_classes', 'value'),
      Input('globalstats-dropdown-equipment', 'value'),
      Input('globalstats-slider-top', 'value')])
-def display_globalstats_graph_men_squat(federation, equipment, n):
+def display_globalstats_graph_men(federation, equipment, n):
     """
     Plot best squat for each men lifter.
 
@@ -139,244 +124,8 @@ def display_globalstats_graph_men_squat(federation, equipment, n):
     # Load and clean data
     df = clean_data(data, federation, equipment)
 
-    # Obtain best squat per men lifter and group by weight class
-    df_squat = get_best_lifts_per_weightclass(df,
-                                              lift='SquatBest',
-                                              sex='M',
-                                              n=n
-                                              )
-
     # Make the figure
-    fig = plot_best_lifts_per_weightclass(data=df_squat,
-                                          lift='SquatBest',
-                                          sex='M',
-                                          federation=federation,
-                                          title='<b>Squat</b>'
-                                          )
-
-    return fig
-
-
-@app.callback(
-    Output('globalstats-graph-men-bench', 'figure'),
-    [Input('globalstats-dropdown-weight_classes', 'value'),
-     Input('globalstats-dropdown-equipment', 'value'),
-     Input('globalstats-slider-top', 'value')])
-def display_globalstats_graph_men_bench(federation, equipment, n):
-    """
-    Plot best bench for each men lifter.
-
-    :return fig: (dict) figure with the plot.
-    """
-    # Load and clean data
-    df = clean_data(data, federation, equipment)
-
-    # Obtain best bench per men lifter and group by weight class
-    df_bench = get_best_lifts_per_weightclass(df,
-                                              lift='BenchBest',
-                                              sex='M',
-                                              n=n
-                                              )
-
-    # Make the figure
-    fig = plot_best_lifts_per_weightclass(data=df_bench,
-                                          lift='BenchBest',
-                                          sex='M',
-                                          federation=federation,
-                                          title='<b>Bench</b>',
-                                          )
-
-    return fig
-
-
-@app.callback(
-    Output('globalstats-graph-men-deadlift', 'figure'),
-    [Input('globalstats-dropdown-weight_classes', 'value'),
-     Input('globalstats-dropdown-equipment', 'value'),
-     Input('globalstats-slider-top', 'value')])
-def display_globalstats_graph_men_deadlift(federation, equipment, n):
-    """
-    Plot best deadlift for each men lifter.
-
-    :return fig: (dict) figure with the plot.
-    """
-    # Load and clean data
-    df = clean_data(data, federation, equipment)
-
-    # Obtain best deadlift per men lifter and group by weight class
-    df_deadlift = get_best_lifts_per_weightclass(df,
-                                                 lift='DeadliftBest',
-                                                 sex='M',
-                                                 n=n
-                                                 )
-
-    # Make the figure
-    fig = plot_best_lifts_per_weightclass(data=df_deadlift,
-                                          lift='DeadliftBest',
-                                          sex='M',
-                                          federation=federation,
-                                          title='<b>Deadlift</b>'
-                                          )
-
-    return fig
-
-
-@app.callback(
-    Output('globalstats-graph-men-total', 'figure'),
-    [Input('globalstats-dropdown-weight_classes', 'value'),
-     Input('globalstats-dropdown-equipment', 'value'),
-     Input('globalstats-slider-top', 'value')])
-def display_globalstats_graph_men_total(federation, equipment, n):
-    """
-    Plot best deadlift for each men lifter.
-
-    :return fig: (dict) figure with the plot.
-    """
-    # Load and clean data
-    df = clean_data(data, federation, equipment)
-
-    # Obtain best deadlift per men lifter and group by weight class
-    df_total = get_best_lifts_per_weightclass(df,
-                                              lift='Total',
-                                              sex='M',
-                                              n=n
-                                              )
-
-    # Make the figure
-    fig = plot_best_lifts_per_weightclass(data=df_total,
-                                          lift='Total',
-                                          sex='M',
-                                          federation=federation,
-                                          title='<b>Total</b>'
-                                          )
-
-    return fig
-
-
-@app.callback(
-    Output('globalstats-graph-women-squat', 'figure'),
-    [Input('globalstats-dropdown-weight_classes', 'value'),
-     Input('globalstats-dropdown-equipment', 'value'),
-     Input('globalstats-slider-top', 'value')])
-def display_globalstats_graph_women_squat(federation, equipment, n):
-    """
-    Plot best squat for each women lifter.
-
-    :return fig: (dict) figure with the plot.
-    """
-    # Load and clean data
-    df = clean_data(data, federation, equipment)
-
-    # Obtain best squat per women lifter and group by weight class
-    df_squat = get_best_lifts_per_weightclass(df,
-                                              lift='SquatBest',
-                                              sex='F',
-                                              n=n
-                                              )
-
-    # Make the figure
-    fig = plot_best_lifts_per_weightclass(data=df_squat,
-                                          lift='SquatBest',
-                                          sex='F',
-                                          federation=federation,
-                                          title='<b>Squat</b>'
-                                          )
-
-    return fig
-
-
-@app.callback(
-    Output('globalstats-graph-women-bench', 'figure'),
-    [Input('globalstats-dropdown-weight_classes', 'value'),
-     Input('globalstats-dropdown-equipment', 'value'),
-     Input('globalstats-slider-top', 'value')])
-def display_globalstats_graph_women_bench(federation, equipment, n):
-    """
-    Plot best bench for each women lifter.
-
-    :return fig: (dict) figure with the plot.
-    """
-    # Load and clean data
-    df = clean_data(data, federation, equipment)
-
-    # Obtain best bench per women lifter and group by weight class
-    df_bench = get_best_lifts_per_weightclass(df,
-                                              lift='BenchBest',
-                                              sex='F',
-                                              n=n
-                                              )
-
-    # Make the figure
-    fig = plot_best_lifts_per_weightclass(data=df_bench,
-                                          lift='BenchBest',
-                                          sex='F',
-                                          federation=federation,
-                                          title='<b>Bench</b>',
-                                          )
-
-    return fig
-
-
-@app.callback(
-    Output('globalstats-graph-women-deadlift', 'figure'),
-    [Input('globalstats-dropdown-weight_classes', 'value'),
-     Input('globalstats-dropdown-equipment', 'value'),
-     Input('globalstats-slider-top', 'value')])
-def display_globalstats_graph_women_deadlift(federation, equipment, n):
-    """
-    Plot best deadlift for each women lifter.
-
-    :return fig: (dict) figure with the plot.
-    """
-    # Load and clean data
-    df = clean_data(data, federation, equipment)
-
-    # Obtain best deadlift per women lifter and group by weight class
-    df_deadlift = get_best_lifts_per_weightclass(df,
-                                                 lift='DeadliftBest',
-                                                 sex='F',
-                                                 n=n
-                                                 )
-
-    # Make the figure
-    fig = plot_best_lifts_per_weightclass(data=df_deadlift,
-                                          lift='DeadliftBest',
-                                          sex='F',
-                                          federation=federation,
-                                          title='<b>Deadlift</b>'
-                                          )
-
-    return fig
-
-
-@app.callback(
-    Output('globalstats-graph-women-total', 'figure'),
-    [Input('globalstats-dropdown-weight_classes', 'value'),
-     Input('globalstats-dropdown-equipment', 'value'),
-     Input('globalstats-slider-top', 'value')])
-def display_globalstats_graph_women_total(federation, equipment, n):
-    """
-    Plot best deadlift for each men lifter.
-
-    :return fig: (dict) figure with the plot.
-    """
-    # Load and clean data
-    df = clean_data(data, federation, equipment)
-
-    # Obtain best deadlift per men lifter and group by weight class
-    df_total = get_best_lifts_per_weightclass(df,
-                                              lift='Total',
-                                              sex='F',
-                                              n=n
-                                              )
-
-    # Make the figure
-    fig = plot_best_lifts_per_weightclass(data=df_total,
-                                          lift='Total',
-                                          sex='F',
-                                          federation=federation,
-                                          title='<b>Total</b>'
-                                          )
+    fig = plot_best_lifts_per_weightclass(df, 'M', federation, n)
 
     return fig
 
@@ -422,7 +171,7 @@ def display_lifterstats_graph_squat(name: str):
     # Make the figure
     fig = px.scatter(df,
                      x='Date',
-                     y='SquatBest',
+                     y='Squat',
                      title='<b>Squat</b>',
                      hover_name='Meet',
                      hover_data=['Squat1', 'Squat2', 'Squat3']
@@ -450,7 +199,7 @@ def display_lifterstats_graph_bench(name: str):
     # Make the figure
     fig = px.scatter(df,
                      x='Date',
-                     y='BenchBest',
+                     y='Bench',
                      title='<b>Bench</b>',
                      hover_name='Meet',
                      hover_data=['Bench1', 'Bench2', 'Bench3']
@@ -462,7 +211,7 @@ def display_lifterstats_graph_bench(name: str):
 @app.callback(
     Output('lifterstats-graph-deadlift', 'figure'),
     [Input('lifterstats-dropdown-name', 'value')])
-def display_lifterstats_graph_deadlift(name: str):
+def display_lifterstats_graph_deadlift(name):
     """
     Filter meet data for a lifter and plot evolution for the deadlift.
 
@@ -478,7 +227,7 @@ def display_lifterstats_graph_deadlift(name: str):
     # Make the figure
     fig = px.scatter(df,
                      x='Date',
-                     y='DeadliftBest',
+                     y='Deadlift',
                      title='<b>Deadlift</b>',
                      hover_name='Meet',
                      hover_data=['Deadlift1', 'Deadlift2', 'Deadlift3']
