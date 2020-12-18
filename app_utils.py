@@ -1,4 +1,7 @@
 # Imports
+import requests
+import zipfile
+import os
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
@@ -6,45 +9,50 @@ from plotly.subplots import make_subplots
 
 
 # Functions
-def get_weight_classes(federation, sex):
-    """
-    Get weight classes for a given sex and federation.
-
-    :param str federation: federation to take weight classes from. 'IPF' or 'WRPF'.
-    :param str sex: sex to take weight classes from. 'M' or 'F'.
-    :return list bins:
-    :return list labels:
-    """
-    # Initialize values
-    bins = []
-    labels = []
-
-    # Update values
-    if federation == 'IPF':
-        if sex == 'M':
-            bins = [0.0, 59.0, 66.0, 74.0, 83.0, 93.0, 105.0, 120.0, 1000.0]
-            labels = ['59', '66', '74', '83', '93', '105', '120', '120+']
-        elif sex == 'F':
-            bins = [0.0, 47.0, 52.0, 57.0, 63.0, 72.0, 84.0, 1000.0]
-            labels = ['47', '52', '57', '63', '72', '84', '84+']
-
-    elif federation == 'WRPF':
-        if sex == 'M':
-            bins = [0.0, 56.0, 60.0, 67.5, 75.0, 82.5, 90.0, 100.0, 110.0, 125.0, 140.0, 1000.0]
-            labels = ['56', '60', '67.5', '75', '82.5', '90', '100', '110', '125', '140', '140+']
-        elif sex == 'F':
-            bins = [0.0, 44.0, 48.0, 52.0, 56.0, 60.0, 67.5, 75.0, 82.5, 90.0, 1000.0]
-            labels = ['44', '48', '52', '56', '60', '67.5 ', '75', '82.5', '90', '90+']
-
-    return bins, labels
-
-
 def download_data():
-    a = 1
-    return a
+    """
+    Download the last version of the data.
+    """
+    # Specify url
+    url = 'https://github.com/sstangl/openpowerlifting-static/raw/gh-pages/openpowerlifting-latest.zip'
+
+    # Delete the previous version if necessary
+    try:
+        for folder in os.listdir('data'):
+            for file in os.listdir('data/' + folder):
+                os.remove('data/' + folder + '/' + file)
+            os.removedirs('data/' + folder)
+        os.removedirs('data')
+    except FileNotFoundError:
+        pass
+
+    # Download zip from url
+    r = requests.get(url, stream=True)
+    with open('opl-data-main.zip', 'wb') as fd:
+        for chunk in r.iter_content(chunk_size=128):
+            fd.write(chunk)
+
+    # Unzip file
+    with zipfile.ZipFile('opl-data-main.zip', "r") as zip_ref:
+        zip_ref.extractall('data')
+
+    # Delete zip
+    os.remove('opl-data-main.zip')
 
 
-def load_data(path):
+def load_data():
+    """
+    Download the data and load it into a dataframe.
+
+    :return: pandas.DataFrame with data from openpowerlifting.org.
+    """
+    # Download the data
+    download_data()
+
+    # Obtain path to the data
+    version = os.listdir('data')[0]
+    path = 'data/' + version + '/' + version + '.csv'
+
     # Load data
     data = pd.read_csv(path,
                        header=0,
@@ -148,12 +156,44 @@ def load_data(path):
     # Perform some universal cleaning
     data = data.loc[data['Event'] == 'SBD']
     data = data.loc[data['Sex'] != 'Mx']
-    #data = data.loc[data['Equipment'].isin(['Raw', 'Wraps'])]
 
     # Drop null values
     data = data.dropna(subset=['Squat', 'Bench', 'Deadlift', 'Total'])
 
     return data
+
+
+def get_weight_classes(federation, sex):
+    """
+    Get weight classes for a given sex and federation.
+
+    :param str federation: federation to take weight classes from. 'IPF' or 'WRPF'.
+    :param str sex: sex to take weight classes from. 'M' or 'F'.
+    :return list bins: bins with weight classes to cut the bodyweight.
+    :return list labels: labels with the weight classes.
+    """
+    # Initialize values
+    bins = []
+    labels = []
+
+    # Update values
+    if federation == 'IPF':
+        if sex == 'M':
+            bins = [0.0, 59.0, 66.0, 74.0, 83.0, 93.0, 105.0, 120.0, 1000.0]
+            labels = ['59', '66', '74', '83', '93', '105', '120', '120+']
+        elif sex == 'F':
+            bins = [0.0, 47.0, 52.0, 57.0, 63.0, 72.0, 84.0, 1000.0]
+            labels = ['47', '52', '57', '63', '72', '84', '84+']
+
+    elif federation == 'WRPF':
+        if sex == 'M':
+            bins = [0.0, 56.0, 60.0, 67.5, 75.0, 82.5, 90.0, 100.0, 110.0, 125.0, 140.0, 1000.0]
+            labels = ['56', '60', '67.5', '75', '82.5', '90', '100', '110', '125', '140', '140+']
+        elif sex == 'F':
+            bins = [0.0, 44.0, 48.0, 52.0, 56.0, 60.0, 67.5, 75.0, 82.5, 90.0, 1000.0]
+            labels = ['44', '48', '52', '56', '60', '67.5 ', '75', '82.5', '90', '90+']
+
+    return bins, labels
 
 
 def clean_data(data, federation, equipment):

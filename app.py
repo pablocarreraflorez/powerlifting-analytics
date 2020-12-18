@@ -8,7 +8,7 @@ from app_utils import *
 
 
 # Load data
-data = load_data('data/openpowerlifting-2020-10-16/openpowerlifting-2020-10-16.csv')
+data = load_data()
 
 # Initialize the app
 app = dash.Dash(__name__, external_stylesheets=['https://codepen.io/chriddyp/pen/bWLwgP.css'])
