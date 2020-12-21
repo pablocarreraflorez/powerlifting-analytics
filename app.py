@@ -6,6 +6,9 @@ import dash_table as dt
 from dash.dependencies import Input, Output
 from app_utils import *
 
+# Define some global variables
+list_equipment = ['Raw', 'Wraps', 'Single-ply', 'Multi-ply']
+list_classes = ['IPF', 'WRPF']
 
 # Load data
 data = load_data()
@@ -19,34 +22,40 @@ app.layout = html.Div(children=[
 
         # Tab for global stats:
         # * Menus to select options
-        # * Plot with best men squat per weight class
-        # * Plot with best men bench per weight class
-        # * Plot with best men deadlift per weight class
+        # * Plot with top squats per sex and weight class
+        # * Plot with top benches per sex and weight class
+        # * Plot with top deadlifts per sex and weight class
+        # * Plot with top totals per sex and weight class
+        # * Plot with top wilks per sex and weight class
         dcc.Tab(
             id='tab-global',
             label='Global stats',
             children=[
                 # Dropdown menus to select options
                 html.Div(children=[
-                    html.Div(children=[
-                        html.H3(children="Weight classes to use:"),
-                        dcc.Dropdown(id='globalstats-dropdown-weight_classes',
-                                     options=[{'label': i, 'value': i} for i in ['IPF', 'WRPF']],
-                                     value='IPF'
-                                     )
-                    ], className='four columns'),
 
+                    # Menu for equipment
                     html.Div(children=[
                         html.H3(children="Equipment:"),
                         dcc.Dropdown(id='globalstats-dropdown-equipment',
-                                     options=[{'label': i, 'value': i} for i in ['Raw', 'Wraps', 'Single-ply', 'Multi-ply']],
+                                     options=[{'label': i, 'value': i} for i in list_equipment],
                                      value=['Raw'],
                                      multi=True
                                      )
                     ], className='four columns'),
 
+                    # Menu for weight classes
                     html.Div(children=[
-                        html.H3(children="Lifters per class to show:"),
+                        html.H3(children="Weight classes"),
+                        dcc.Dropdown(id='globalstats-dropdown-weight_classes',
+                                     options=[{'label': i, 'value': i} for i in list_classes],
+                                     value='IPF'
+                                     )
+                    ], className='four columns'),
+
+                    # Menu for number of lifters
+                    html.Div(children=[
+                        html.H3(children="Lifters per class:"),
                         dcc.Slider(id='globalstats-slider-top',
                                    min=1,
                                    max=100,
@@ -56,8 +65,9 @@ app.layout = html.Div(children=[
                     ], className='four columns')
                 ], className='row'),
 
-                # Plots with best squat, bench and deadlift per weight class
+                # Plots
                 html.Div(children=dcc.Graph(id='globalstats-graph-men')),
+                html.Div(children=dcc.Graph(id='globalstats-graph-women'))
 
             ]
         ),
@@ -79,12 +89,8 @@ app.layout = html.Div(children=[
                     value='Taylor Atwood'
                 ),
 
-                # Plots with the evolutions of squat, bench and deadlift
-                html.Div(children=[
-                    html.Div(children=dcc.Graph(id='lifterstats-graph-squat'), className='four columns'),
-                    html.Div(children=dcc.Graph(id='lifterstats-graph-bench'), className='four columns'),
-                    html.Div(children=dcc.Graph(id='lifterstats-graph-deadlift'), className='four columns')
-                ], className='row'),
+                # Plots
+                html.Div(children=dcc.Graph(id='lifterstats-graph-evolution')),
 
                 # Table with the data of the meets
                 dt.DataTable(
@@ -114,7 +120,8 @@ app.layout = html.Div(children=[
     Output('globalstats-graph-men', 'figure'),
     [Input('globalstats-dropdown-weight_classes', 'value'),
      Input('globalstats-dropdown-equipment', 'value'),
-     Input('globalstats-slider-top', 'value')])
+     Input('globalstats-slider-top', 'value')]
+    )
 def display_globalstats_graph_men(federation, equipment, n):
     """
     Plot best squat for each men lifter.
@@ -126,6 +133,26 @@ def display_globalstats_graph_men(federation, equipment, n):
 
     # Make the figure
     fig = plot_best_lifts_per_weightclass(df, 'M', federation, n)
+
+    return fig
+
+
+@app.callback(
+    Output('globalstats-graph-women', 'figure'),
+    [Input('globalstats-dropdown-weight_classes', 'value'),
+     Input('globalstats-dropdown-equipment', 'value'),
+     Input('globalstats-slider-top', 'value')])
+def display_globalstats_graph_men(federation, equipment, n):
+    """
+    Plot best squat for each men lifter.
+
+    :return fig: (dict) figure with the plot.
+    """
+    # Load and clean data
+    df = clean_data(data, federation, equipment)
+
+    # Make the figure
+    fig = plot_best_lifts_per_weightclass(df, 'F', federation, n)
 
     return fig
 
@@ -153,87 +180,20 @@ def display_lifterstats_table_meets(name: str):
 
 
 @app.callback(
-    Output('lifterstats-graph-squat', 'figure'),
+    Output('lifterstats-graph-evolution', 'figure'),
     [Input('lifterstats-dropdown-name', 'value')])
-def display_lifterstats_graph_squat(name: str):
+def display_lifterstats_graph_squat(name):
     """
     Filter meet data for a lifter and plot evolution for the squat.
 
     :param name: (str) name of the lifter.
     :return fig: (dict) figure with the plot.
     """
-    # Filter data
-    df = data[data['Name'] == name]
-
-    # Sort by date
-    df = df.sort_values(by='Date', ascending=False)
-
     # Make the figure
-    fig = px.scatter(df,
-                     x='Date',
-                     y='Squat',
-                     title='<b>Squat</b>',
-                     hover_name='Meet',
-                     hover_data=['Squat1', 'Squat2', 'Squat3']
-                     )
+    fig = plot_lift_evolution_per_lifter(data, name)
 
-    return fig.update_traces(mode='lines+markers')
+    return fig
 
-
-@app.callback(
-    Output('lifterstats-graph-bench', 'figure'),
-    [Input('lifterstats-dropdown-name', 'value')])
-def display_lifterstats_graph_bench(name: str):
-    """
-    Filter meet data for a lifter and plot evolution for the bench.
-
-    :param name: (str) name of the lifter.
-    :return fig: (dict) figure with the plot.
-    """
-    # Filter data
-    df = data[data['Name'] == name]
-
-    # Sort by date
-    df = df.sort_values(by='Date', ascending=False)
-
-    # Make the figure
-    fig = px.scatter(df,
-                     x='Date',
-                     y='Bench',
-                     title='<b>Bench</b>',
-                     hover_name='Meet',
-                     hover_data=['Bench1', 'Bench2', 'Bench3']
-                     )
-
-    return fig.update_traces(mode='lines+markers')
-
-
-@app.callback(
-    Output('lifterstats-graph-deadlift', 'figure'),
-    [Input('lifterstats-dropdown-name', 'value')])
-def display_lifterstats_graph_deadlift(name):
-    """
-    Filter meet data for a lifter and plot evolution for the deadlift.
-
-    :param name: (str) name of the lifter.
-    :return fig: (dict) figure with the plot.
-    """
-    # Filter data
-    df = data[data['Name'] == name]
-
-    # Sort by date
-    df = df.sort_values(by='Date', ascending=False)
-
-    # Make the figure
-    fig = px.scatter(df,
-                     x='Date',
-                     y='Deadlift',
-                     title='<b>Deadlift</b>',
-                     hover_name='Meet',
-                     hover_data=['Deadlift1', 'Deadlift2', 'Deadlift3']
-                     )
-
-    return fig.update_traces(mode='lines+markers')
 
 # Run the app
 if __name__ == '__main__':

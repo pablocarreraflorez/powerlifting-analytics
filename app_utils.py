@@ -44,7 +44,7 @@ def load_data():
     """
     Download the data and load it into a dataframe.
 
-    :return: pandas.DataFrame with data from openpowerlifting.org.
+    :return: pd.DataFrame with data from openpowerlifting.org.
     """
     # Download the data
     download_data()
@@ -163,11 +163,11 @@ def load_data():
     return data
 
 
-def get_weight_classes(federation, sex):
+def get_weight_classes(classes, sex):
     """
-    Get weight classes for a given sex and federation.
+    Get weight classes for a given sex and weight_classes.
 
-    :param str federation: federation to take weight classes from. 'IPF' or 'WRPF'.
+    :param str classes: federation to take weight classes from. 'IPF' or 'WRPF'.
     :param str sex: sex to take weight classes from. 'M' or 'F'.
     :return list bins: bins with weight classes to cut the bodyweight.
     :return list labels: labels with the weight classes.
@@ -177,7 +177,7 @@ def get_weight_classes(federation, sex):
     labels = []
 
     # Update values
-    if federation == 'IPF':
+    if classes == 'IPF':
         if sex == 'M':
             bins = [0.0, 59.0, 66.0, 74.0, 83.0, 93.0, 105.0, 120.0, 1000.0]
             labels = ['59', '66', '74', '83', '93', '105', '120', '120+']
@@ -185,7 +185,7 @@ def get_weight_classes(federation, sex):
             bins = [0.0, 47.0, 52.0, 57.0, 63.0, 72.0, 84.0, 1000.0]
             labels = ['47', '52', '57', '63', '72', '84', '84+']
 
-    elif federation == 'WRPF':
+    elif classes == 'WRPF':
         if sex == 'M':
             bins = [0.0, 56.0, 60.0, 67.5, 75.0, 82.5, 90.0, 100.0, 110.0, 125.0, 140.0, 1000.0]
             labels = ['56', '60', '67.5', '75', '82.5', '90', '100', '110', '125', '140', '140+']
@@ -196,21 +196,21 @@ def get_weight_classes(federation, sex):
     return bins, labels
 
 
-def clean_data(data, federation, equipment):
+def clean_data(data, classes, equipment):
     """
     Clean data using the filters selected by the user.
 
-    :param pandas.DataFrame data: raw data from all the meets.
-    :param federation:
-    :param equipment:
-    :return:
+    :param pd.DataFrame data: raw data from all the meets.
+    :param str classes: federation to take weight classes from. 'IPF' or 'WRPF'.
+    :param list equipment: allowed equipment for the meets. 'Raw', 'Wraps', 'Single-ply' or 'Multi-ply'.
+    :return: pd.DataFrame clean data from all the meets.
     """
     # Copy data
     df = data.copy()
 
     # Obtain weight classes
-    men_bins, men_labels = get_weight_classes(federation=federation, sex='M')
-    women_bins, women_labels = get_weight_classes(federation=federation, sex='F')
+    men_bins, men_labels = get_weight_classes(classes=classes, sex='M')
+    women_bins, women_labels = get_weight_classes(classes=classes, sex='F')
 
     # Clean weight classes
     df.loc[df['Sex'] == 'M', 'WeightClass'] = pd.cut(df.loc[df['Sex'] == 'M', 'Bodyweight'],
@@ -235,11 +235,11 @@ def get_best_lifts_per_weightclass(data, lift, sex, n=10):
     """
     Get n best lifts for weight class and sex.
 
-    :param pandas.DataFrame data: raw data from all the meets.
+    :param pd.DataFrame data: raw data from all the meets.
     :param str sex: sex to filter. 'M' or 'F'.
     :param str lift: lift to track.
     :param int n: number of lifters to keep of each weight class.
-    :return pandas.DataFrame df: data from n best lifts for weight class and sex.
+    :return pd.DataFrame df: data from n best lifts for weight class and sex.
     """
     # Perform the filter and the groupings
     df = data[data['Sex'] == sex] \
@@ -253,15 +253,16 @@ def get_best_lifts_per_weightclass(data, lift, sex, n=10):
 
 def get_lift_plot_per_weightclass(fig, data, lift, weight_classes, colors, row, col, showlegend=False):
     """
+    Add a a lift plot the figure of lift plots.
 
-    :param fig:
-    :param data:
-    :param lift:
-    :param weight_classes:
-    :param colors:
-    :param row:
-    :param col:
-    :param showlegend:
+    :param go.Figure fig: figure with the plots.
+    :param pd.DataFrame data: data from n best lifts for weight class and sex.
+    :param str lift: lift to show.
+    :param list weight_classes: list with labels of the weight classes.
+    :param colors: colors for the weight classes.
+    :param int row: row position in layout of figure.
+    :param int col: col position in layout of figure.
+    :param bool showlegend: flag indicating if the legend has to be shown.
     :return:
     """
     for i, wc in enumerate(weight_classes):
@@ -274,28 +275,29 @@ def get_lift_plot_per_weightclass(fig, data, lift, weight_classes, colors, row, 
                        name=wc,
                        marker=dict(color=colors[i]),
                        hovertext=df['Name'],
-                       hovertemplate='<b>%{hovertext}</b><br>Bodyweight: %{x} <br>' + lift + ': %{y}<br>Date: %{customdata|%Y-%m-%d}<extra></extra>',
+                       hovertemplate='<b>%{hovertext}</b><br>Bodyweight: %{x} kg<br>' + lift + ': %{y} kg<br>Date: %{customdata|%Y-%m-%d}<extra></extra>',
                        legendgroup='WeightClass',
                        showlegend=showlegend
                        ),
             row=row,
             col=col
         )
+
     return fig
 
 
-def plot_best_lifts_per_weightclass(data, sex, federation, n):
+def plot_best_lifts_per_weightclass(data, sex, classes, n):
     """
     Plot n best lifts for weight class and sex.
 
     :param pandas.DataFrame data: data with n best lifts for weight class and sex.
     :param str sex: sex to filter. 'M' or 'F'.
-    :param str federation: federation to take weight classes from. 'IPF' or 'WRPF'.
+    :param str classes: federation to take weight classes from. 'IPF' or 'WRPF'.
     :param int n: number of lifters to keep of each weight class.
-    :return:
+    :return: fig with the plots.
     """
     # Get weight classes
-    _, weight_classes = get_weight_classes(federation=federation, sex=sex)
+    _, weight_classes = get_weight_classes(classes=classes, sex=sex)
 
     # Get colors
     colors = px.colors.qualitative.Dark24
@@ -310,7 +312,12 @@ def plot_best_lifts_per_weightclass(data, sex, federation, n):
     # Make figure
     fig = make_subplots(rows=1,
                         cols=5,
-                        subplot_titles=['<b>Squat</b>', '<b>Bench</b>', '<b>Deadlift</b>', '<b>Total</b>', '<b>Wilks</b>']
+                        subplot_titles=['<b>Squat</b>',
+                                        '<b>Bench</b>',
+                                        '<b>Deadlift</b>',
+                                        '<b>Total</b>',
+                                        '<b>Wilks</b>'
+                                        ]
                         )
 
     # Add plots of lifts
@@ -359,5 +366,73 @@ def plot_best_lifts_per_weightclass(data, sex, federation, n):
                                         col=5,
                                         showlegend=False
                                         )
+
+    return fig
+
+
+def get_lift_evolution_plot_per_lifter(fig, data, lift, row, col):
+    fig.add_trace(
+        go.Scatter(x=data['Date'],
+                   y=data[lift],
+                   mode='markers+lines',
+                   hovertext=data['Name'],
+                   hovertemplate='<b>%{hovertext}</b><br>Date: %{x} <br>' + lift + ': %{y}<extra></extra>',
+                   ),
+        row=row,
+        col=col
+    )
+    return fig
+
+
+def plot_lift_evolution_per_lifter(data, name):
+    # Filter data
+    df = data[data['Name'] == name]
+
+    # Sort by date
+    df = df.sort_values(by='Date', ascending=False)
+
+    # Make figure
+    fig = make_subplots(rows=1,
+                        cols=5,
+                        subplot_titles=['<b>Squat</b>',
+                                        '<b>Bench</b>',
+                                        '<b>Deadlift</b>',
+                                        '<b>Total</b>',
+                                        '<b>Wilks</b>'
+                                        ]
+                        )
+
+    # Add plots of lifts
+    # Add plots of lifts
+    fig = get_lift_evolution_plot_per_lifter(fig,
+                                             data=df,
+                                             lift='Squat',
+                                             row=1,
+                                             col=1
+                                             )
+    fig = get_lift_evolution_plot_per_lifter(fig,
+                                             data=df,
+                                             lift='Bench',
+                                             row=1,
+                                             col=2
+                                             )
+    fig = get_lift_evolution_plot_per_lifter(fig,
+                                             data=df,
+                                             lift='Deadlift',
+                                             row=1,
+                                             col=3
+                                             )
+    fig = get_lift_evolution_plot_per_lifter(fig,
+                                             data=df,
+                                             lift='Total',
+                                             row=1,
+                                             col=4
+                                             )
+    fig = get_lift_evolution_plot_per_lifter(fig,
+                                             data=df,
+                                             lift='Wilks',
+                                             row=1,
+                                             col=5
+                                             )
 
     return fig
