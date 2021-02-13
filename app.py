@@ -9,6 +9,12 @@ from app_utils import *
 # Define some global variables
 list_equipment = ['Raw', 'Wraps', 'Single-ply', 'Multi-ply']
 list_classes = ['IPF', 'WRPF']
+list_columns = ['Date', 'Meet', 'Federation', 'ParentFederation', 'WeightClass',
+                'Squat1', 'Squat2', 'Squat3', 'Squat',
+                'Bench1', 'Bench2', 'Bench3', 'Bench',
+                'Deadlift1', 'Deadlift2', 'Deadlift3', 'Deadlift',
+                'Total', 'Wilks'
+                ]
 
 # Load data
 data = load_data()
@@ -95,7 +101,7 @@ app.layout = html.Div(children=[
                 # Table with the data of the meets
                 dt.DataTable(
                     id='lifterstats-datatable-meets',
-                    columns=[{'id': col, 'name': col} for col in data.columns.values],
+                    columns=[{'id': col, 'name': col} for col in list_columns],
                     style_table={'overflowX': 'auto'},
                     page_size=10,
                     style_data_conditional=[
@@ -122,17 +128,20 @@ app.layout = html.Div(children=[
      Input('globalstats-dropdown-equipment', 'value'),
      Input('globalstats-slider-top', 'value')]
     )
-def display_globalstats_graph_men(federation, equipment, n):
+def display_globalstats_graph_men(classes, equipment, n):
     """
-    Plot best squat for each men lifter.
+    Plot best lifts for men lifters.
 
-    :return fig: (dict) figure with the plot.
+    :param str classes: federation to take weight classes from. 'IPF' or 'WRPF'.
+    :param list equipment: allowed equipment for the meets. 'Raw', 'Wraps', 'Single-ply' or 'Multi-ply'.
+    :param int n: number of lifters to keep of each weight class.
+    :return fig: Figure, figure with the plot.
     """
     # Load and clean data
-    df = clean_data(data, federation, equipment)
+    df = clean_data(data, classes, equipment)
 
     # Make the figure
-    fig = plot_best_lifts_per_weightclass(df, 'M', federation, n)
+    fig = plot_best_lifts_per_weightclass(df, 'M', classes, n)
 
     return fig
 
@@ -142,17 +151,36 @@ def display_globalstats_graph_men(federation, equipment, n):
     [Input('globalstats-dropdown-weight_classes', 'value'),
      Input('globalstats-dropdown-equipment', 'value'),
      Input('globalstats-slider-top', 'value')])
-def display_globalstats_graph_men(federation, equipment, n):
+def display_globalstats_graph_women(classes, equipment, n):
     """
-    Plot best squat for each men lifter.
+    Plot best lifts for women lifters.
 
-    :return fig: (dict) figure with the plot.
+    :param str classes: federation to take weight classes from. 'IPF' or 'WRPF'.
+    :param list equipment: allowed equipment for the meets. 'Raw', 'Wraps', 'Single-ply' or 'Multi-ply'.
+    :param int n: number of lifters to keep of each weight class.
+    :return fig: Figure, figure with the plot.
     """
     # Load and clean data
-    df = clean_data(data, federation, equipment)
+    df = clean_data(data, classes, equipment)
 
     # Make the figure
-    fig = plot_best_lifts_per_weightclass(df, 'F', federation, n)
+    fig = plot_best_lifts_per_weightclass(df, 'F', classes, n)
+
+    return fig
+
+
+@app.callback(
+    Output('lifterstats-graph-evolution', 'figure'),
+    [Input('lifterstats-dropdown-name', 'value')])
+def display_lifterstats_graph_evolution(name):
+    """
+    Filter meet data for a lifter and plot evolution for the squat.
+
+    :param str name: name of the lifter.
+    :return fig: Figure, figure with the plot.
+    """
+    # Make the figure
+    fig = plot_lift_evolution_per_lifter(data, name)
 
     return fig
 
@@ -160,39 +188,17 @@ def display_globalstats_graph_men(federation, equipment, n):
 @app.callback(
     Output('lifterstats-datatable-meets', 'data'),
     [Input('lifterstats-dropdown-name', 'value')])
-def display_lifterstats_table_meets(name: str):
+def display_lifterstats_table_meets(name):
     """
     Filter meet data for a lifter and sort it by date.
 
-    :param name: (str) name of the lifter.
-    :return df_records: (dict) meet data in record format.
+    :param str name: name of the lifter.
+    :return: dict, meet data in record format.
     """
-    # Filter data
-    df = data[data['Name'] == name]
+    # Make the table
+    table = table_meets_per_lifter(data, name)
 
-    # Sort by date
-    df = df.sort_values(by='Date', ascending=False)
-
-    # Obtain the records
-    df_records = df.to_dict('records')
-
-    return df_records
-
-
-@app.callback(
-    Output('lifterstats-graph-evolution', 'figure'),
-    [Input('lifterstats-dropdown-name', 'value')])
-def display_lifterstats_graph_squat(name):
-    """
-    Filter meet data for a lifter and plot evolution for the squat.
-
-    :param name: (str) name of the lifter.
-    :return fig: (dict) figure with the plot.
-    """
-    # Make the figure
-    fig = plot_lift_evolution_per_lifter(data, name)
-
-    return fig
+    return table
 
 
 # Run the app

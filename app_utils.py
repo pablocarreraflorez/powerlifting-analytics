@@ -56,15 +56,16 @@ def load_data():
     # Load data
     data = pd.read_csv(path,
                        header=0,
+                       index_col=False,
                        names=['Name',
                               'Sex',
                               'Event',
                               'Equipment',
                               'Age',
                               'AgeClass',
-                              'BirthYearClass',  #
+                              'BirthYearClass',
                               'Division',
-                              'Bodyweight',  # 'Bodyweight'
+                              'Bodyweight',  # 'BodyweightKg'
                               'WeightClass',  # 'WeightClassKg'
                               'Squat1',  # 'Squat1Kg'
                               'Squat2',  # 'Squat2Kg'
@@ -89,6 +90,7 @@ def load_data():
                               'Goodlift',
                               'Tested',
                               'Country',
+                              'State',
                               'Federation',
                               'ParentFederation',
                               'Date',
@@ -149,13 +151,15 @@ def load_data():
                               'Deadlift': 'float',
                               'Total': 'float',
                               'Wilks': 'float'
-                              },
-                       parse_dates=['Date']
+                              }
                        )
+    # Parse dates
+    data['Date'] = pd.to_datetime(data['Date'], format='%Y-%m-%d')
 
     # Perform some universal cleaning
     data = data.loc[data['Event'] == 'SBD']
     data = data.loc[data['Sex'] != 'Mx']
+    data = data.loc[data['Wilks'] >= 400]
 
     # Drop null values
     data = data.dropna(subset=['Squat', 'Bench', 'Deadlift', 'Total'])
@@ -169,8 +173,8 @@ def get_weight_classes(classes, sex):
 
     :param str classes: federation to take weight classes from. 'IPF' or 'WRPF'.
     :param str sex: sex to take weight classes from. 'M' or 'F'.
-    :return list bins: bins with weight classes to cut the bodyweight.
-    :return list labels: labels with the weight classes.
+    :return: bins, list with weight classes to cut the bodyweight.
+    :return: labels, list with the weight classes.
     """
     # Initialize values
     bins = []
@@ -203,7 +207,7 @@ def clean_data(data, classes, equipment):
     :param pd.DataFrame data: raw data from all the meets.
     :param str classes: federation to take weight classes from. 'IPF' or 'WRPF'.
     :param list equipment: allowed equipment for the meets. 'Raw', 'Wraps', 'Single-ply' or 'Multi-ply'.
-    :return: pd.DataFrame clean data from all the meets.
+    :return: pd.DataFrame, clean data from all the meets.
     """
     # Copy data
     df = data.copy()
@@ -239,7 +243,7 @@ def get_best_lifts_per_weightclass(data, lift, sex, n=10):
     :param str sex: sex to filter. 'M' or 'F'.
     :param str lift: lift to track.
     :param int n: number of lifters to keep of each weight class.
-    :return pd.DataFrame df: data from n best lifts for weight class and sex.
+    :return: pd.DataFrame, data from n best lifts for weight class and sex.
     """
     # Perform the filter and the groupings
     df = data[data['Sex'] == sex] \
@@ -263,10 +267,21 @@ def get_lift_plot_per_weightclass(fig, data, lift, weight_classes, colors, row, 
     :param int row: row position in layout of figure.
     :param int col: col position in layout of figure.
     :param bool showlegend: flag indicating if the legend has to be shown.
-    :return:
+    :return: Figure, fig with the plot.
     """
+    # Prepare the hovertemplate
+    title = '<b>%{hovertext}</b><br>'
+    line_1 = 'Bodyweight: %{x} kg<br>'
+    line_2 = lift + ': %{y}<br>' if (lift == 'Wilks') else lift + ': %{y} kg<br>'
+    line_3 = 'Date: %{customdata|%Y-%m-%d}'
+    hovertemplate = title + line_1 + line_2 + line_3 + '<extra></extra>'
+
+    # Loop over weight classes
     for i, wc in enumerate(weight_classes):
+        # Filter data for each weight class
         df = data[data['WeightClass'] == wc]
+
+        # Plot data for each weight class
         fig.add_trace(
             go.Scatter(x=df['Bodyweight'],
                        y=df[lift],
@@ -275,7 +290,7 @@ def get_lift_plot_per_weightclass(fig, data, lift, weight_classes, colors, row, 
                        name=wc,
                        marker=dict(color=colors[i]),
                        hovertext=df['Name'],
-                       hovertemplate='<b>%{hovertext}</b><br>Bodyweight: %{x} kg<br>' + lift + ': %{y} kg<br>Date: %{customdata|%Y-%m-%d}<extra></extra>',
+                       hovertemplate=hovertemplate,
                        legendgroup='WeightClass',
                        showlegend=showlegend
                        ),
@@ -294,7 +309,7 @@ def plot_best_lifts_per_weightclass(data, sex, classes, n):
     :param str sex: sex to filter. 'M' or 'F'.
     :param str classes: federation to take weight classes from. 'IPF' or 'WRPF'.
     :param int n: number of lifters to keep of each weight class.
-    :return: fig with the plots.
+    :return: Figure, fig with the plots.
     """
     # Get weight classes
     _, weight_classes = get_weight_classes(classes=classes, sex=sex)
@@ -371,12 +386,32 @@ def plot_best_lifts_per_weightclass(data, sex, classes, n):
 
 
 def get_lift_evolution_plot_per_lifter(fig, data, lift, row, col):
+    """
+    Add a a lift plot the figure of lift plots.
+
+    :param go.Figure fig: figure with the plots.
+    :param pd.DataFrame data: data with all the meets of the lifter.
+    :param str lift: lift to show.
+    :param int row: row position in layout of figure.
+    :param int col: col position in layout of figure.
+    :return: Figure, fig with the plot.
+    """
+    # Prepare the hovertemplate
+    title = '<b>%{hovertext}</b><br>'
+    line_1 = 'Bodyweight: %{customdata} kg<br>'
+    line_2 = lift + ': %{y}<br>' if (lift == 'Wilks') else lift + ': %{y} kg<br>'
+    line_3 = 'Date: %{x|%Y-%m-%d}'
+    hovertemplate = title + line_1 + line_2 + line_3 + '<extra></extra>'
+
+    # Plot data for each lift
     fig.add_trace(
         go.Scatter(x=data['Date'],
                    y=data[lift],
+                   customdata=data['Bodyweight'],
                    mode='markers+lines',
                    hovertext=data['Name'],
-                   hovertemplate='<b>%{hovertext}</b><br>Date: %{x} <br>' + lift + ': %{y}<extra></extra>',
+                   hovertemplate=hovertemplate,
+                   showlegend=False
                    ),
         row=row,
         col=col
@@ -385,6 +420,13 @@ def get_lift_evolution_plot_per_lifter(fig, data, lift, row, col):
 
 
 def plot_lift_evolution_per_lifter(data, name):
+    """
+    Plot evolution of the lifts for a given lifter.
+
+    :param pd.DataFrame data: data with all the meets.
+    :param str name: name of the lifter.
+    :return: Figure, fig with the plots.
+    """
     # Filter data
     df = data[data['Name'] == name]
 
@@ -402,7 +444,6 @@ def plot_lift_evolution_per_lifter(data, name):
                                         ]
                         )
 
-    # Add plots of lifts
     # Add plots of lifts
     fig = get_lift_evolution_plot_per_lifter(fig,
                                              data=df,
@@ -436,3 +477,34 @@ def plot_lift_evolution_per_lifter(data, name):
                                              )
 
     return fig
+
+
+def table_meets_per_lifter(data, name):
+    """
+    Plot evolution of the lifts for a given lifter.
+
+    :param pd.DataFrame data: data with all the meets.
+    :param str name: name of the lifter.
+    :return: dict, table with the data of the meets.
+    """
+    # Filter data
+    df = data[data['Name'] == name]
+
+    # Sort by date
+    df = df.sort_values(by='Date', ascending=False)
+
+    # Format the date
+    df['Date'] = df['Date'].astype('str')
+
+    # Order the columns
+    df = df[['Date', 'Meet', 'Federation', 'ParentFederation', 'WeightClass',
+             'Squat1', 'Squat2', 'Squat3', 'Squat',
+             'Bench1', 'Bench2', 'Bench3', 'Bench',
+             'Deadlift1', 'Deadlift2', 'Deadlift3', 'Deadlift',
+             'Total', 'Wilks'
+             ]]
+
+    # Obtain records
+    table = df.to_dict('records')
+
+    return table
